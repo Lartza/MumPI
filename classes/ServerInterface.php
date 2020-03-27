@@ -5,7 +5,7 @@ require_once(MUMPHPI_MAINDIR.'/classes/TranslationManager.php');
 require_once(MUMPHPI_MAINDIR.'/classes/HelperFunctions.php');
 require_once(MUMPHPI_MAINDIR.'/classes/MessageManager.php');
 
-if (extension_loaded('ice') && function_exists('Ice_intVersion') && Ice_intVersion() >= 30400) {
+if (extension_loaded('ice')) {
 	$ICE_INCLUSION_FILENAME = 'Ice.php';
 	// Ice.php is a hard dependency. Whatever includes this file will require Ice to work.
 	if (!stream_resolve_include_path($ICE_INCLUSION_FILENAME)) {
@@ -62,50 +62,20 @@ class ServerInterface_ice
 		} else {
 			$this->contextVars = SettingsManager::getInstance()->getDbInterface_iceSecrets();
 
-			if (!function_exists('Ice_intVersion') || Ice_intVersion() < 30400) {
-				$this->initIce33();
-			} else {
-				$this->initIce34();
-			}
+			$this->initIce();
 
 			$this->connect();
 		}
 	}
-	
-	private function initIce33()
+
+	private function initIce()
 	{
-		// ice 3.3
-
-		//TODO it would be good to be able to add a check if slice file is loaded
-		//if (empty(ini_get('ice.slice'))) {
-		//MessageManager::addError(tr('error_noIceSliceLoaded'));
-
-		global $ICE;
-		Ice_loadProfile();
-		try
-		{
-			$conn = $ICE->stringToProxy(SettingsManager::getInstance()->getDbInterface_address());
-			$this->meta = $conn->ice_checkedCast("::Murmur::Meta");
-			// use IceSecret if set
-			if (!empty($this->contextVars)) {
-				$this->meta = $this->meta->ice_context($this->contextVars);
-			}
-			$this->meta = $this->meta->ice_timeout(10000);
-		}
-		catch (Ice_ProxyParseException $e)
-		{
-			MessageManager::addError(tr('error_invalidIceInterface_address'));
-		}
-	}
-
-	private function initIce34()
-	{
-		// ice 3.4
-		$initData = new Ice_InitializationData;
-		$initData->properties = Ice_createProperties();
+		// ice 3.7
+		$initData = new \Ice\InitializationData();
+		$initData->properties = \Ice\createProperties();
 		$initData->properties->setProperty('Ice.ImplicitContext', 'Shared');
 		$initData->properties->setProperty('Ice.Default.EncodingVersion', '1.0');
-		$ICE = Ice_initialize($initData);
+		$ICE = \Ice\initialize($initData);
 		/*
 		 * getImplicitContext() is not implemented for icePHP yet…
 		 * $ICE->getImplicitContext();
@@ -117,7 +87,7 @@ class ServerInterface_ice
 		 * $ICE->getImplicitContext()->put('icesecret', 'ts');
 		 */
 		try {
-			$this->meta = Murmur_MetaPrxHelper::checkedCast($ICE->stringToProxy(SettingsManager::getInstance()->getDbInterface_address()));
+			$this->meta = \Murmur\MetaPrxHelper::checkedCast($ICE->stringToProxy(SettingsManager::getInstance()->getDbInterface_address()));
 			$this->meta = $this->meta->ice_context($this->contextVars);
 			//TODO: catch ProxyParseException, EndpointParseException, IdentityParseException from stringToProxy()
 		} catch (Ice_ConnectionRefusedException $exc) {
